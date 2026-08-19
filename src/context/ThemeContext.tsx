@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { safeStorage } from '../utils/storage';
 
-type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
   theme: Theme;
@@ -8,23 +9,30 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
 }
 
+const THEME_STORAGE_KEY = 'portfolio_theme';
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme') as Theme | null;
-      if (savedTheme === 'light' || savedTheme === 'dark') {
-        return savedTheme;
-      }
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        return 'light';
-      }
+    // 1. Check safely stored user preference
+    const savedTheme = safeStorage.getItem<Theme | null>(THEME_STORAGE_KEY, null);
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme;
     }
+
+    // 2. Check system prefers-color-scheme if available
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
+    }
+
+    // 3. Default to black-based dark theme
     return 'dark';
   });
 
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -33,7 +41,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.add('light');
       root.classList.remove('dark');
     }
-    localStorage.setItem('theme', theme);
+
+    // Persist safely using safeStorage helper
+    safeStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
   const toggleTheme = () => {

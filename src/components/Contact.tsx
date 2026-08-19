@@ -1,21 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Send, CheckCircle2, AlertCircle, MapPin, Sparkles, UserCheck } from 'lucide-react';
 import { personalInfo } from '../data/portfolioData';
 import { ContactFormData } from '../types';
+import { safeStorage } from '../utils/storage';
+
+const CONTACT_DRAFT_KEY = 'portfolio_contact_draft';
 
 export const Contact: React.FC = () => {
-  const [formData, setFormData] = useState<ContactFormData>({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
-    honeypot: '',
+  const [formData, setFormData] = useState<ContactFormData>(() => {
+    return safeStorage.getSessionItem<ContactFormData>(CONTACT_DRAFT_KEY, {
+      name: '',
+      email: '',
+      subject: '',
+      message: '',
+      honeypot: '',
+    });
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
+
+  // Persist non-sensitive form drafts to safe session storage
+  useEffect(() => {
+    if (formData.name || formData.email || formData.subject || formData.message) {
+      safeStorage.setSessionItem(CONTACT_DRAFT_KEY, {
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        honeypot: '',
+      });
+    }
+  }, [formData]);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -52,6 +70,7 @@ export const Contact: React.FC = () => {
       // Quietly drop bot submissions
       setStatus('success');
       setStatusMessage('Thank you! Your message has been sent successfully.');
+      safeStorage.removeSessionItem(CONTACT_DRAFT_KEY);
       return;
     }
 
@@ -62,12 +81,13 @@ export const Contact: React.FC = () => {
     setStatus('submitting');
 
     try {
-      // Simulate form sending / Firebase connection interface
+      // Simulate form sending / ready for Firebase or serverless function
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       setStatus('success');
       setStatusMessage('Thank you for reaching out! Your message has been received.');
       setFormData({ name: '', email: '', subject: '', message: '', honeypot: '' });
+      safeStorage.removeSessionItem(CONTACT_DRAFT_KEY);
       setErrors({});
     } catch {
       setStatus('error');

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Anas Mahmud | Portfolio</title>
+    <script type="text/javascript">
+      // Single Page Application redirect script for GitHub Pages
+      // Encodes path and query parameters into query string and redirects to index.html
+      (function() {
+        var pathSegmentsToKeep = 1; // 1 for project sites (e.g. /ANAS-MAHMUD/)
+        var location = window.location;
+        
+        // If repo name is at root (custom domain), keep 0 segments
+        var isCustomDomain = !location.pathname.startsWith('/ANAS-MAHMUD');
+        if (isCustomDomain) {
+          pathSegmentsToKeep = 0;
+        }
+
+        var redirectUrl = location.protocol + '//' + location.hostname + (location.port ? ':' + location.port : '');
+        var pathSegments = location.pathname.split('/').filter(Boolean);
+        var baseSegments = pathSegments.slice(0, pathSegmentsToKeep);
+        var subPathSegments = pathSegments.slice(pathSegmentsToKeep);
+
+        redirectUrl += '/' + baseSegments.join('/');
+        if (baseSegments.length > 0) {
+          redirectUrl += '/';
+        }
+
+        redirectUrl += '?p=/' + subPathSegments.join('/') + (location.search ? '&q=' + encodeURIComponent(location.search.slice(1)) : '') + location.hash;
+
+        location.replace(redirectUrl);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>

@@ -48,6 +48,26 @@
         "url": "https://anasmahmudportfolio.com"
       }
     </script>
+
+    <!-- SPA Redirect Restore Handler for GitHub Pages 404 fallback -->
+    <script type="text/javascript">
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&');
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        } else if (l.search.indexOf('p=/') > -1) {
+          var params = new URLSearchParams(l.search);
+          var path = params.get('p') || '';
+          var query = params.get('q') ? '?' + decodeURIComponent(params.get('q')) : '';
+          var cleanBase = l.pathname.replace(/\/$/, '');
+          window.history.replaceState(null, null, cleanBase + path + query + l.hash);
+        }
+      }(window.location));
+    </script>
   </head>
   <body class="bg-zinc-950 text-zinc-100 antialiased font-['Plus_Jakarta_Sans',sans-serif] selection:bg-purple-500/30 selection:text-purple-200">
     <div id="root"></div>
