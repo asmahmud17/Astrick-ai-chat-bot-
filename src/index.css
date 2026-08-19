@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Respect reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #09090b;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9333ea;
+  }
+}
+
+/* Purple Glow Utility */
+.purple-glow {
+  box-shadow: 0 0 50px -10px rgba(168, 85, 247, 0.25);
+}
+
+.purple-glow-sm {
+  box-shadow: 0 0 20px -5px rgba(168, 85, 247, 0.2);
+}
+
+/* Dark / Light card styling */
+.theme-card {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dark .theme-card {
+  background-color: rgba(24, 24, 27, 0.8);
+  border-color: rgba(39, 39, 42, 0.8);
+  color: #f4f4f5;
+}
+
+.dark .theme-card:hover {
+  border-color: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 10px 30px -10px rgba(168, 85, 247, 0.15);
+}
+
+.light .theme-card {
+  background-color: #ffffff;
+  border-color: #e4e4e7;
+  color: #18181b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.light .theme-card:hover {
+  border-color: rgba(147, 51, 234, 0.5);
+  box-shadow: 0 10px 25px -5px rgba(147, 51, 234, 0.1);
+}
