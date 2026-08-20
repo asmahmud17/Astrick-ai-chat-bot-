@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Mail, Send, CheckCircle2, AlertCircle, MapPin, Sparkles, UserCheck } from 'lucide-react';
+import { Mail, Send, CheckCircle2, AlertCircle, MapPin, Sparkles, UserCheck, Copy, Check } from 'lucide-react';
 import { personalInfo } from '../data/portfolioData';
 import { ContactFormData } from '../types';
 import { safeStorage } from '../utils/storage';
@@ -8,6 +8,9 @@ import { safeStorage } from '../utils/storage';
 const CONTACT_DRAFT_KEY = 'portfolio_contact_draft';
 
 export const Contact: React.FC = () => {
+  const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || personalInfo.emailPlaceholder;
+  const contactApiUrl = import.meta.env.VITE_CONTACT_API_URL || '';
+
   const [formData, setFormData] = useState<ContactFormData>(() => {
     return safeStorage.getSessionItem<ContactFormData>(CONTACT_DRAFT_KEY, {
       name: '',
@@ -19,8 +22,9 @@ export const Contact: React.FC = () => {
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'opened_client' | 'sent_backend' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   // Persist non-sensitive form drafts to safe session storage
   useEffect(() => {
@@ -34,6 +38,15 @@ export const Contact: React.FC = () => {
       });
     }
   }, [formData]);
+
+  const handleCopyEmail = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(contactEmail).then(() => {
+        setCopiedEmail(true);
+        setTimeout(() => setCopiedEmail(false), 2500);
+      }).catch(() => {});
+    }
+  };
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -65,11 +78,10 @@ export const Contact: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Spam honeypot check
+    // Spam honeypot check - silently ignore bot submission
     if (formData.honeypot) {
-      // Quietly drop bot submissions
-      setStatus('success');
-      setStatusMessage('Thank you! Your message has been sent successfully.');
+      setStatus('opened_client');
+      setStatusMessage('Request processed.');
       safeStorage.removeSessionItem(CONTACT_DRAFT_KEY);
       return;
     }
@@ -80,18 +92,60 @@ export const Contact: React.FC = () => {
 
     setStatus('submitting');
 
-    try {
-      // Simulate form sending / ready for Firebase or serverless function
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    // 1. If a backend contact API is configured via environment variable, dispatch payload to it
+    if (contactApiUrl) {
+      try {
+        const response = await fetch(contactApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            subject: formData.subject.trim(),
+            message: formData.message.trim(),
+          }),
+        });
 
-      setStatus('success');
-      setStatusMessage('Thank you for reaching out! Your message has been received.');
-      setFormData({ name: '', email: '', subject: '', message: '', honeypot: '' });
+        if (response.ok) {
+          setStatus('sent_backend');
+          setStatusMessage('Your message was successfully received by the backend service. Thank you!');
+          setFormData({ name: '', email: '', subject: '', message: '', honeypot: '' });
+          safeStorage.removeSessionItem(CONTACT_DRAFT_KEY);
+          setErrors({});
+          return;
+        } else {
+          throw new Error('Backend response was not ok');
+        }
+      } catch {
+        // Fallback to mailto if backend fails
+      }
+    }
+
+    // 2. Client-side / Static deployment (Honest behavior: opens email client with drafted message)
+    try {
+      const emailSubject = encodeURIComponent(`[Portfolio Inquiry] ${formData.subject.trim()}`);
+      const emailBody = encodeURIComponent(
+        `Hello Anas,\n\nName: ${formData.name.trim()}\nEmail: ${formData.email.trim()}\n\nMessage:\n${formData.message.trim()}\n\nSent from Portfolio Contact Form`
+      );
+
+      const mailtoUrl = `mailto:${contactEmail}?subject=${emailSubject}&body=${emailBody}`;
+
+      // Open mailto link
+      window.location.href = mailtoUrl;
+
+      setStatus('opened_client');
+      setStatusMessage(
+        `Your email application has been launched with your message pre-filled for ${contactEmail}. Please confirm and send the email in your mail app.`
+      );
       safeStorage.removeSessionItem(CONTACT_DRAFT_KEY);
       setErrors({});
     } catch {
       setStatus('error');
-      setStatusMessage('An error occurred while sending your message. Please try again.');
+      setStatusMessage(
+        `Unable to automatically launch your email client. Please copy the contact email (${contactEmail}) and send your inquiry directly.`
+      );
     }
   };
 
@@ -108,7 +162,7 @@ export const Contact: React.FC = () => {
             Let’s Create Something Meaningful
           </h2>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400">
-            Have a question, a project idea, or an opportunity to discuss? Feel free to send me a message through the contact form.
+            Have a question, a project idea, or an opportunity to discuss? Feel free to send a message or reach out via email.
           </p>
           <div className="w-16 h-1 bg-purple-600 mx-auto mt-4 rounded-full" />
         </div>
@@ -134,16 +188,29 @@ export const Contact: React.FC = () => {
                   <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
                     <Mail className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <span className="text-xs uppercase font-semibold text-zinc-500 dark:text-zinc-400 block">
                       Email Address
                     </span>
-                    <span className="text-sm sm:text-base font-semibold text-zinc-800 dark:text-zinc-200">
-                      {personalInfo.emailPlaceholder}
-                    </span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-500 block mt-1">
-                      (Configurable placeholder)
-                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-sm sm:text-base font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                        {contactEmail}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyEmail}
+                        className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+                        title="Copy email address"
+                        aria-label="Copy email address"
+                      >
+                        {copiedEmail ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {contactEmail === personalInfo.emailPlaceholder && (
+                      <span className="text-xs text-zinc-500 dark:text-zinc-500 block mt-1">
+                        (Configurable placeholder)
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -177,7 +244,7 @@ export const Contact: React.FC = () => {
               </div>
 
               <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800/80 text-xs text-zinc-500 dark:text-zinc-400">
-                🔒 Privacy Assured: Messages sent through this form are private and will not be shared.
+                🔒 Privacy Assured: Inquiries sent directly to this address remain private.
               </div>
             </div>
           </motion.div>
@@ -205,16 +272,23 @@ export const Contact: React.FC = () => {
                 />
 
                 {/* Status Message Display */}
-                {status === 'success' && (
-                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 flex items-center gap-3 text-sm">
-                    <CheckCircle2 className="w-5 h-5 shrink-0" />
+                {status === 'opened_client' && (
+                  <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-800 dark:text-purple-200 flex items-start gap-3 text-sm">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-purple-600 dark:text-purple-400" />
+                    <span>{statusMessage}</span>
+                  </div>
+                )}
+
+                {status === 'sent_backend' && (
+                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 flex items-start gap-3 text-sm">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                     <span>{statusMessage}</span>
                   </div>
                 )}
 
                 {status === 'error' && (
-                  <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 flex items-center gap-3 text-sm">
-                    <AlertCircle className="w-5 h-5 shrink-0" />
+                  <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 flex items-start gap-3 text-sm">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     <span>{statusMessage}</span>
                   </div>
                 )}
@@ -298,7 +372,7 @@ export const Contact: React.FC = () => {
                   className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold text-base shadow-lg shadow-purple-600/30 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   {status === 'submitting' ? (
-                    <span>Sending Message...</span>
+                    <span>Preparing Message...</span>
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
